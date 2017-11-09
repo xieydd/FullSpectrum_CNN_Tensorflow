@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import *
 
 #读取轴承文件
-def readFile(path):
+def readFile(path,txt_path):
     files = os.listdir(path)
     M1 = []
     M2 = []
@@ -37,6 +37,13 @@ def readFile(path):
         M2.append(matrix2)
     M1 = np.matrix(M1)
     M2 = np.matrix(M2)
+    #将矩阵转换成csv文件便于以后的读取
+    m1 = pd.DataFrame(M1)
+    m1.to_csv(txt_path+'/m1.csv')
+
+    m2 = pd.DataFrame(M2)
+    m2.to_csv(txt_path+'/m2.csv')
+
     return M1,M2
 
 #画出2156组数据的均方值和峭度matrix为一个通道的(2156,20480)
