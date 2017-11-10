@@ -196,7 +196,7 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
     
     zv=rv+iv_a
     xp=0.5*np.abs(zv[2:n/2])      #正进动幅值序列
-    mxr=0.5*np.abs(zv[n/2+2:n]);   #反进动幅值序列所需中间变量
+    mxr=0.5*np.abs(zv[n/2+2:n])   #反进动幅值序列所需中间变量
     nn=len(mxr)            #反进动幅值序列长度
     xr=np.zeros((nn,1))             #反进动幅值序列
     tr=np.zeros((nn,1))
