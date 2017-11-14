@@ -43,8 +43,8 @@ def time(x,y):
     
  #希尔伯特   
 def hibert(x,y):
-    x = x[chioce_num,0:20000]
-    y = y[chioce_num,0:20000]
+    x = x[chioce_num,:]
+    y = y[chioce_num,:]
     
     #X_Hilbert包络谱
     x_signal = np.array(x).flatten()#展成一维
@@ -53,13 +53,14 @@ def hibert(x,y):
     x_instantaneous_phase = np.unwrap(np.angle(x_analytic_signal))#瞬时相位
     x_instantaneous_frequency = (np.diff(x_instantaneous_phase)/(2.0*np.pi) * fs)#瞬时频率
     
-    x_signal_fft = np.abs(fftpack.fft(x_analytic_signal)/10000)
-    f = [i*fs/N for i in range(10000)]
+    x_signal_fft = np.abs(fftpack.fft(x_analytic_signal)/2048)
+    f = [i*fs/N for i in range(2048)]
+        
     
     fig1 = plt.figure(figsize=(12,12))
     ax0 = fig1.add_subplot(211)
-    ax0.plot(t, x_signal, label='signal')
-    ax0.plot(t, x_amplitude_envelope, label='envelope')
+    ax0.plot(t[0:2048], x_signal, label='signal')
+    ax0.plot(t[0:2048], x_amplitude_envelope, label='envelope')
     ax0.set_xlabel("时间/s")
     ax0.set_ylabel('加速度m/s^2')
     ax0.set_title('X通道希尔伯特包络')
@@ -71,12 +72,12 @@ def hibert(x,y):
     y_instantaneous_phase = np.unwrap(np.angle(y_analytic_signal))#瞬时相位
     y_instantaneous_frequency = (np.diff(y_instantaneous_phase)/(2.0*np.pi) * fs)#瞬时频率
     
-    y_signal_fft = np.abs(fftpack.fft(y_analytic_signal)/10000)
-    f = [i*fs/N for i in range(10000)]
+    y_signal_fft = np.abs(fftpack.fft(y_analytic_signal)/2048)
+    f = [i*fs/N for i in range(2048)]
     
     ax1 = fig1.add_subplot(212)
-    ax1.plot(t, y_signal, label='signal')
-    ax1.plot(t, y_amplitude_envelope, label='envelope')
+    ax1.plot(t[0:2048], y_signal, label='signal')
+    ax1.plot(t[0:2048], y_amplitude_envelope, label='envelope')
     ax1.set_xlabel("时间/s")
     ax1.set_ylabel('加速度m/s^2')
     ax1.set_title('Y通道希尔伯特包络')
@@ -84,33 +85,33 @@ def hibert(x,y):
     
     fig2 = plt.figure(figsize=(12,12))
     ax0 = fig2.add_subplot(211)
-    ax0.plot(t[1:], x_instantaneous_frequency)
+    ax0.plot(t[0:2047], x_instantaneous_frequency)
     ax0.set_xlabel("时间/s")
     ax0.set_ylabel("瞬时频率/Hz")
     ax0.set_title('X通道瞬时频率')
     
     ax1 = fig2.add_subplot(212)
-    ax1.plot(t[1:], y_instantaneous_frequency)
+    ax1.plot(t[0:2047], y_instantaneous_frequency)
     ax1.set_xlabel("时间/s")
     ax1.set_ylabel("瞬时频率/Hz")
     ax1.set_title('Y通道瞬时频率')
     
     fig3 = plt.figure(figsize=(12,12))
     ax0 = fig3.add_subplot(211)
-    ax0.plot(f,x_signal_fft[0:10000])
+    ax0.plot(f[0:2048],x_signal_fft[0:2048])
     ax0.set_ylim(0.0,0.1)
     ax0.set_xlabel("频率/Hz")
     ax0.set_ylabel("加速度m/s^2")
     ax0.set_title('X通道Hiblert频谱')
     
     ax1 = fig3.add_subplot(212)
-    ax1.plot(f,y_signal_fft[0:10000])
+    ax1.plot(f[0:2048],y_signal_fft[0:2048])
     ax1.set_ylim(0.0,0.1)
     ax1.set_xlabel("频率/Hz")
     ax1.set_ylabel("加速度m/s^2")
     ax1.set_title('Y通道Hiblert频谱')
     
-    return x_amplitude_envelope[0:1000],y_amplitude_envelope[0:1000]
+    return x_amplitude_envelope,y_amplitude_envelope
    
 '''
 全矢希尔伯特  输入x_amplitude_envelope,y_amplitude_envelope
@@ -167,7 +168,7 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
     xdata = xdata-np.mean(xdata)
     ydata = ydata-np.mean(ydata)
 
-    xdata.reshape(1000,1)
+    xdata.reshape(2048,1)
     z = np.zeros((len(xdata),1),dtype=complex)
     
     for i in range(len(xdata)):
@@ -294,4 +295,13 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
         phase = {}
         phase["aa"] = aa
         phase["wave_time"] = wave_time
+        
+        #全矢希尔伯特图
+        fig1 = plt.figure(figsize=(12,12))
+        ax0 = fig1.add_subplot(211)
+        f = np.arange(0,n_half,1)
+        ax0.plot(f[0:],vm)
+        ax0.set_xlabel("频率/Hz")
+        ax0.set_ylabel("'加速度m/s^2")
+        ax0.set_title('全矢Hilbert解调信号')
         return vm,vs,vr,alpha,phase
