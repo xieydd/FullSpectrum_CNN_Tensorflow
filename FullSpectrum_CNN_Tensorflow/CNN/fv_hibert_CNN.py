@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 #@Description: 基于全矢希尔伯特的CNN模型
 #@author xieydd xieydd@gmail.com
-#@date 2017-12-02 下午16:50:50
+#@date 2017-12-02 下午16:50:51
 from keras import layers
 from keras.layers import Input,Dense,Activation,ZeroPadding2D,BatchNormalization,Flatten,Conv2D
 from keras.layers import AveragePooling2D,MaxPooling2D,Dropout,GlobalMaxPool2D,GlobalAveragePooling2D,Dropout
