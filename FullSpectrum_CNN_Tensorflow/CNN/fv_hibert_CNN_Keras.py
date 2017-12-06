@@ -249,6 +249,7 @@ fv_hibert_CNN_Model.compile(optimizer='Adam',loss='categorical_crossentropy',met
 fv_hibert_CNN_Model.summary()
 start = time.time()
 #fv_hibert_CNN_Model.fit(x=x_image,y=input_lables,epochs=40,verbose=1,validation_split=0.2,batch_size=16)
+#在callbacks中加入EarlyStopping(monitor='val_loss', patience=2, verbose=0),
 history = fv_hibert_CNN_Model.fit(x=x_train,y=y_train,epochs=40,verbose=1,callbacks=[ModelCheckpoint('D:/Graph/checkpoints/weights.best-{epoch}.hdf5', monitor='acc', verbose=0, save_best_only=True, mode='max')],validation_split=0.2,validation_data=(x_test,y_test),batch_size=64,shuffle=True)
 fv_hibert_CNN_Model.save('fv_hibert_CNN_Model_Kreas_1.h5')
 print('@ Total Time Spent: %.2f seconds' % (time.time() - start))
