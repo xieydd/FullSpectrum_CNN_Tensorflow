@@ -47,13 +47,13 @@ def fv_hibert_CNN(input_shape):
         应该不用在加层数，学习效果已经不错了
         '''
         #X = ZeroPadding2D((1,1))(X_input)
-        X = Conv2D(6,(4,4),strides=(1,1),name='conv0',padding='same')(X_input)
+        X = Conv2D(6,(5,5),strides=(1,1),name='conv0',padding='same')(X_input)
         X = BatchNormalization(axis=2,name='bn0')(X)
         X = Activation('tanh')(X)
         X = MaxPooling2D((2,2),strides=(2,2),name='pool0',padding='same')(X)
 
         #X = ZeroPadding2D((3,3))(X_input)
-        X = Conv2D(12,(4,4),strides=(1,1),name='conv1',padding='same')(X)
+        X = Conv2D(12,(3,3),strides=(1,1),name='conv1',padding='same')(X)
         X = BatchNormalization(axis=2,name='bn1')(X)
         X = Activation('tanh')(X)
         X = MaxPooling2D((2,2),strides=(2,2),name='pool1',padding='same')(X)
@@ -244,6 +244,7 @@ fv_hibert_CNN_Model = fv_hibert_CNN(x_train[1].shape)
 #filepath="D:/Graph/checkpoints/weights.best.hdf5"
 #checkpoint = ModelCheckpoint(filepath, monitor='acc', verbose=1, save_best_only=True, mode='max')
 
+#试过adam>RMSProp约等于Nadam>Adaprop>adadelta约等于adamax
 fv_hibert_CNN_Model.compile(optimizer='Adam',loss='categorical_crossentropy',metrics= ['accuracy'])
 #fv_hibert_CNN_Model.fit(x=x_image,y=input_lables,epochs=40,verbose=1,validation_split=0.2,batch_size=16)
 fv_hibert_CNN_Model.summary()
@@ -259,7 +260,8 @@ print("Training Accuracy = %.2f %%     loss = %f" % (accuracy * 100, loss))
 accuracy_curve(history)
 
 #保存模型
-embedding_layer_names = set(layer.name for layer in fv_hibert_CNN_Model.layers  if layer.name.startswith('dense_'))
+layers_to_save = ['fc0','fc1']#,'pool0','conv1','pool1','fc0','fc1'试过不能议案家太多 或者也可以set(layer.name for layer in fv_hibert_CNN_Model.layers  if layer.name.startswith('dense_'))
+embedding_layer_names = set(layer.name for layer in fv_hibert_CNN_Model.layers  if layer.name in layers_to_save）
 tb_cb = TensorBoard(log_path, histogram_freq=10, batch_size=32,
                            write_graph=True, write_grads=True, write_images=True,
                            embeddings_freq=10, embeddings_metadata=None,
