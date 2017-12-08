@@ -9,8 +9,10 @@ import os
 import numpy as np  
 import tensorflow as tf   
 import pandas as pd  
-from sklearn.model_selection import train_test_split
-
+from keras.models import Model
+from keras.layers.merge import Concatenate
+from keras.layers.core import Lambda
+import keras.backend.tensorflow_backend as KTF
 
 class FV_Hilbert_CNNConfig(object):
     """CNN配置参数"""
@@ -29,6 +31,7 @@ class FV_Hilbert_CNNConfig(object):
 
     signal_length = 1024    #信号长度
     signal_classes = 9          #信号种类
+    signal_reshaped = 32         #输
 
     batch_size = 64         #每批训练大小
     num_epochs = 40         #总迭代轮数
@@ -50,75 +53,75 @@ class FV_Hilbert_CNN(object):
         self.config = config
 
         #三个待输入参数
-        self.input_x = tf.placeholder(tf.float32,shape=[None,self.config.signal_length],name='input_x')
+        self.input_x = tf.placeholder(tf.float32,shape=[None,self.config.signal_reshaped,self.config.signal_reshaped,1],name='input_x')
         self.input_y = tf.placeholder(tf.float32,shape=[None,self.config.signal_classes],name='input_y')
         self.keep_prob = tf.placeholder(tf.float32,name='keep_prob')
         self.cnn()
         
     def cnn(self):
-        get_session(gpu_fraction=GPU_used)
+        KTF.set_session(FV_Hilbert_CNN.get_session(0.8))  # using 80% of total GPU Memory  
         #TODOwith tf.device('/cpu:0'):
         
         
-        regularizer = tf.contrib.layers.l2_regularizer(self.learning_rate)    
+        regularizer = tf.contrib.layers.l2_regularizer(self.config.learning_rate_base)    
         
-        with tf.variable_scope('layer1-conv1',reuse=True):
-            conv1_weights = tf.get_variable("weights",[self.kernel_size1,self.kernel_size1,self.channels1,self.kernel_num1],initializer = tf.truncated_normal_initializer(stddev=0.1))
-            conv1_biases = tf.get_variable("biases",[self.kernel_num1],initializer=tf.constant_initializer(0.0))
+        with tf.variable_scope('layer1-conv1',reuse=None):
+            conv1_weights = tf.get_variable("weights",[self.config.kernel_size1,self.config.kernel_size1,self.config.channels1,self.config.kernel_num1],initializer = tf.truncated_normal_initializer(stddev=0.1))
+            conv1_biases = tf.get_variable("biases",[self.config.kernel_num1],initializer=tf.constant_initializer(0.0))
             #TODO
-            conv1 = tf.nn.conv2d(input_tensor,conv1_weights,strides=[1,1,1,1],padding="SAME")
-            relu1 = tf.nn.tanh(tf.nn.bias_add(conv1,conv1_biases1))
+            conv1 = tf.nn.conv2d(self.input_x,conv1_weights,strides=[1,1,1,1],padding="SAME")
+            relu1 = tf.nn.tanh(tf.nn.bias_add(conv1,conv1_biases))
         with tf.variable_scope('layer2-pool1',reuse=None):
-            pool1 = tf.nn.max_pool(relu1,ksize=[1,self.num_pool1,self.num_pool1,1],strides=[1,2,2,1],padding='SAME')
+            pool1 = tf.nn.max_pool(relu1,ksize=[1,self.config.num_pool1,self.config.num_pool1,1],strides=[1,2,2,1],padding='SAME')
             
         with tf.variable_scope('layer3-conv2',reuse=None):
-            conv2_weights = tf.get_variable("weights",[self.kernel_size2,self.kernel_size2,self.channels2,self.kernel_num2],initializer = tf.truncated_normal_initializer(stddev=0.1))
-            conv2_biases = tf.get_variable("biases",[self.kernel_num2],initializer=tf.constant_initializer(0.0))
+            conv2_weights = tf.get_variable("weights",[self.config.kernel_size2,self.config.kernel_size2,self.config.channels2,self.config.kernel_num2],initializer = tf.truncated_normal_initializer(stddev=0.1))
+            conv2_biases = tf.get_variable("biases",[self.config.kernel_num2],initializer=tf.constant_initializer(0.0))
             conv2 = tf.nn.conv2d(pool1,conv2_weights,strides=[1,1,1,1],padding="SAME")
             relu2 = tf.nn.tanh(tf.nn.bias_add(conv2,conv2_biases))
 
         with tf.variable_scope("layer4-pool2",reuse=None):
-            pool2 = tf.nn.max_pool(relu2,ksize=[1,self.num_pool2,self.num_pool2,1],strides=[1,2,2,1],padding="SAME")
+            pool2 = tf.nn.max_pool(relu2,ksize=[1,self.config.num_pool2,self.config.num_pool2,1],strides=[1,2,2,1],padding="SAME")
         
-        h_pool2_flat=tf.reshape(pool2,[-1,self.signal_length])
+        h_pool2_flat=tf.reshape(pool2,[-1,self.config.signal_length])
         
         with tf.variable_scope("layer5-fc1",reuse=None):
-            fc1_weights = tf.get_variable("weights",[self.signal_length,self.num_fc1],initializer = tf.truncated_normal_initializer(stddev=0.1))
+            fc1_weights = tf.get_variable("weights",[self.config.signal_length,self.config.num_fc1],initializer = tf.truncated_normal_initializer(stddev=0.1))
             if regularizer != None:
                 tf.add_to_collection("losses",regularizer(fc1_weights))
-            fc1_biases = tf.get_variable("biases",[self.signal_length],initializer=tf.constant_initializer(0.1))
+            fc1_biases = tf.get_variable("biases",[self.config.num_fc1],initializer=tf.constant_initializer(0.1))
             fc1 = tf.nn.tanh(tf.matmul(h_pool2_flat,fc1_weights)+fc1_biases)
-            if train: fc1 = tf.nn.dropout(fc1,self.keep_prob)
+            if self.config.train: fc1 = tf.nn.dropout(fc1,self.config.drop_out)
             
         with tf.variable_scope("layer6-fc2",reuse=None):
-            fc2_weights = tf.get_variable("weights",[self.num_fc1,self.num_fc2],initializer=tf.truncated_normal_initializer(stddev=0.1))
+            fc2_weights = tf.get_variable("weights",[self.config.num_fc1,self.config.num_fc2],initializer=tf.truncated_normal_initializer(stddev=0.1))
             if regularizer != None:
                 tf.add_to_collection("losses",regularizer(fc2_weights))
-            fc2_biases = tf.get_variable("biases",[self.num_fc2],initializer=tf.constant_initializer(0.1))
-            self.logit = tf.matmul(fc1,fc2_weights)+fc2_biases
-            self.y_pred = tf.arg_max(tf.nn.softmax(self.logit),1)
+            fc2_biases = tf.get_variable("biases",[self.config.num_fc2],initializer=tf.constant_initializer(0.1))
+            self.logit = tf.nn.softmax(tf.matmul(fc1,fc2_weights)+fc2_biases)
+            self.y_pred_cls = tf.argmax(self.logit,1)
         
         
         #使用滑动平均输出
         global_step =  tf.Variable(0,trainable=False)
         with tf.name_scope('moving_average'):
-            variable_average = tf.train.ExponentialMovingAverage(self.moving_average_decay,global_step)
-            variable_average_op = variable_average.apply(tf.trainable_variables)
+            variable_average = tf.train.ExponentialMovingAverage(self.config.moving_average_decay,global_step)
+            variable_average_op = variable_average.apply(tf.trainable_variables())
             
         with tf.name_scope('loss_function'):
-            cross_entrypy_mean  = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logit,labels=input_y))
-            self.loss = cross_entrypy_mean + tf.add_n(tf.get_collection('loss'))
+            cross_entrypy_mean  = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit,labels=tf.argmax(self.input_y,1)))
+            self.loss = cross_entrypy_mean + tf.add_n(tf.get_collection('losses'))
              
             
         with tf.name_scope('train_step_optimize'):
            #TODO这里还有一个参数没加
-            learning_rate = tf.train.exponential_decay(self.learning_rate_base,global_step,staircase=True)
+            self.learning_rate = tf.train.exponential_decay(self.config.learning_rate_base,global_step,1800/self.config.batch_size,self.config.learning_rate_decay,staircase=True)
             self.train_step = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss,global_step=global_step)
-            with tf.control_dependencies([train_step,variable_average_op]):
-                self.train_op = tf.no_op(name='train')
+            with tf.control_dependencies([self.train_step,variable_average_op]):
+                self.config.train_op = tf.no_op(name='train')
                 
         with tf.name_scope('accuracy'):
-            correct_pred = tf.equal(tf.arg_max(self.input_y,1),self.y_pred)
+            correct_pred = tf.equal(tf.argmax(self.input_y,1),self.y_pred_cls)
             self.acc = tf.reduce_mean(tf.cast(correct_pred,tf.float32))
     
     ######################################  
