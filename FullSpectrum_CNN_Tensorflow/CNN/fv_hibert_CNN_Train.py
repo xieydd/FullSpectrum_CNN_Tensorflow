@@ -15,7 +15,7 @@ from sklearn import metrics
 
 
 filename = 'J:/1/啦啦啦/sample'
-save_dir = ''
+save_dir = 'D:/Graph'
 save_path = os.path.join(save_dir,'best_validation')#最佳验证 结果保存地址
 
 ######################################  
@@ -124,11 +124,13 @@ def train(signal,labels):
    #载入训练集和验证集
    start_time = time.time()
    x_train,x_test,y_train,y_test=train_test_split(signal,labels,test_size=0.2,random_state=0)
+   x_train = np.reshape(x_train,[-1,32,32,1])
+   x_test = np.reshape(x_train,[-1,32,32,1])
    time_dif = get_time(start_time)
    print('The Usage :',time_dif)
    
    #创建Session
-   session= tf.session()
+   session= tf.Session()
    session.run(tf.global_variables_initializer())
    writer.add_graph(session.graph)
    print("Training and evaluaating.......")   
@@ -181,6 +183,8 @@ def train(signal,labels):
 def test(signal,labels):
      print("Loading test data...")
      x_train,x_test,y_train,y_test=train_test_split(signal,labels,test_size=0.2,random_state=0)
+     x_train = np.reshape(x_train,[-1,32,32,1])
+     x_test = np.reshape(x_train,[-1,32,32,1])
      start_time = time.time()
      session = tf.Session()
      session.run(tf.global_variables_initializer())
