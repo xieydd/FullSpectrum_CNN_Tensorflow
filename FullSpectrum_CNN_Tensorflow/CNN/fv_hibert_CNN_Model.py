@@ -29,12 +29,12 @@ class FV_Hilbert_CNNConfig(object):
     num_fc1 = 100       #全连接层1神经元
     num_fc2 = 9         #全连接层2神经元
 
-    signal_length = 1024    #信号长度
+    signal_length = 768    #信号长度
     signal_classes = 9          #信号种类
     signal_reshaped = 32         #输
 
     batch_size = 64         #每批训练大小
-    num_epochs = 40         #总迭代轮数
+    num_epochs = 4000         #总迭代轮数
     learning_rate = 1e-4    #学习率
     drop_out = 0.5          #drop参数
 
@@ -65,58 +65,58 @@ class FV_Hilbert_CNN(object):
         
         regularizer = tf.contrib.layers.l2_regularizer(self.config.learning_rate_base)    
         
-        with tf.variable_scope('layer1-conv1',reuse=None):
+        with tf.variable_scope('layer1-conv1'):
             conv1_weights = tf.get_variable("weights",[self.config.kernel_size1,self.config.kernel_size1,self.config.channels1,self.config.kernel_num1],initializer = tf.truncated_normal_initializer(stddev=0.1))
             conv1_biases = tf.get_variable("biases",[self.config.kernel_num1],initializer=tf.constant_initializer(0.0))
             #TODO
             conv1 = tf.nn.conv2d(self.input_x,conv1_weights,strides=[1,1,1,1],padding="SAME")
-            relu1 = tf.nn.tanh(tf.nn.bias_add(conv1,conv1_biases))
-        with tf.variable_scope('layer2-pool1',reuse=None):
+            relu1 = tf.nn.relu(tf.nn.bias_add(conv1,conv1_biases))
+        with tf.variable_scope('layer2-pool1'):
             pool1 = tf.nn.max_pool(relu1,ksize=[1,self.config.num_pool1,self.config.num_pool1,1],strides=[1,2,2,1],padding='SAME')
             
-        with tf.variable_scope('layer3-conv2',reuse=None):
+        with tf.variable_scope('layer3-conv2'):
             conv2_weights = tf.get_variable("weights",[self.config.kernel_size2,self.config.kernel_size2,self.config.channels2,self.config.kernel_num2],initializer = tf.truncated_normal_initializer(stddev=0.1))
             conv2_biases = tf.get_variable("biases",[self.config.kernel_num2],initializer=tf.constant_initializer(0.0))
             conv2 = tf.nn.conv2d(pool1,conv2_weights,strides=[1,1,1,1],padding="SAME")
-            relu2 = tf.nn.tanh(tf.nn.bias_add(conv2,conv2_biases))
+            relu2 = tf.nn.relu(tf.nn.bias_add(conv2,conv2_biases))
 
-        with tf.variable_scope("layer4-pool2",reuse=None):
-            pool2 = tf.nn.max_pool(relu2,ksize=[1,self.config.num_pool2,self.config.num_pool2,1],strides=[1,2,2,1],padding="SAME")
+        with tf.variable_scope("layer4-pool2"):
+            self.pool2 = tf.nn.max_pool(relu2,ksize=[1,self.config.num_pool2,self.config.num_pool2,1],strides=[1,2,2,1],padding="SAME")
+            
+            h_pool2_flat=tf.reshape(self.pool2,[-1,self.config.signal_length])
         
-        h_pool2_flat=tf.reshape(pool2,[-1,self.config.signal_length])
-        
-        with tf.variable_scope("layer5-fc1",reuse=None):
+        with tf.variable_scope("layer5-fc1"):
             fc1_weights = tf.get_variable("weights",[self.config.signal_length,self.config.num_fc1],initializer = tf.truncated_normal_initializer(stddev=0.1))
             if regularizer != None:
                 tf.add_to_collection("losses",regularizer(fc1_weights))
             fc1_biases = tf.get_variable("biases",[self.config.num_fc1],initializer=tf.constant_initializer(0.1))
             fc1 = tf.nn.tanh(tf.matmul(h_pool2_flat,fc1_weights)+fc1_biases)
-            if self.config.train: fc1 = tf.nn.dropout(fc1,self.config.drop_out)
+            #if self.config.train: fc1 = tf.nn.dropout(fc1,self.config.drop_out)
             
-        with tf.variable_scope("layer6-fc2",reuse=None):
+        with tf.variable_scope("layer6-fc2"):
             fc2_weights = tf.get_variable("weights",[self.config.num_fc1,self.config.num_fc2],initializer=tf.truncated_normal_initializer(stddev=0.1))
             if regularizer != None:
                 tf.add_to_collection("losses",regularizer(fc2_weights))
             fc2_biases = tf.get_variable("biases",[self.config.num_fc2],initializer=tf.constant_initializer(0.1))
-            self.logit = tf.nn.softmax(tf.matmul(fc1,fc2_weights)+fc2_biases)
-            self.y_pred_cls = tf.argmax(self.logit,1)
+            self.logit = tf.matmul(fc1,fc2_weights)+fc2_biases
+            self.y_pred_cls = tf.argmax(tf.nn.softmax(self.logit),1)
         
         
         #使用滑动平均输出
-        global_step =  tf.Variable(0,trainable=False)
+        global_step =  tf.Variable(0.0,trainable=True)
         with tf.name_scope('moving_average'):
             variable_average = tf.train.ExponentialMovingAverage(self.config.moving_average_decay,global_step)
             variable_average_op = variable_average.apply(tf.trainable_variables())
             
         with tf.name_scope('loss_function'):
-            cross_entrypy_mean  = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit,labels=tf.argmax(self.input_y,1)))
+            cross_entrypy_mean  = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_y,logits=self.logit))
             self.loss = cross_entrypy_mean + tf.add_n(tf.get_collection('losses'))
              
             
         with tf.name_scope('train_step_optimize'):
            #TODO这里还有一个参数没加
             self.learning_rate = tf.train.exponential_decay(self.config.learning_rate_base,global_step,1800/self.config.batch_size,self.config.learning_rate_decay,staircase=True)
-            self.train_step = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss,global_step=global_step)
+            self.train_step = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
             with tf.control_dependencies([self.train_step,variable_average_op]):
                 self.config.train_op = tf.no_op(name='train')
                 
