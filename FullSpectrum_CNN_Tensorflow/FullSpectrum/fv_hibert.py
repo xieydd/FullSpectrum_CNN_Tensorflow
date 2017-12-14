@@ -22,7 +22,7 @@ plt.rc('font', family='SimHei', size=13)
 N = 20000
 fs = 20000
 t = np.linspace(0/fs,N/fs,N)
-chioce_num = 1
+chioce_num = 10
 
 #时域信号
 def time(x,y):
@@ -43,8 +43,8 @@ def time(x,y):
     
  #希尔伯特   
 def hibert(x,y):
-    x = x[chioce_num,0:20000]
-    y = y[chioce_num,0:20000]
+    x = x[chioce_num-1,0:20000]
+    y = y[chioce_num-1,0:20000]
     
     #X_Hilbert包络谱
     x_signal = np.array(x).flatten()#展成一维
@@ -97,20 +97,20 @@ def hibert(x,y):
     
     fig3 = plt.figure(figsize=(12,12))
     ax0 = fig3.add_subplot(211)
-    ax0.plot(f,x_signal_fft[0:10000])
+    ax0.plot(f[0:2000],x_signal_fft[0:2000])
     ax0.set_ylim(0.0,0.1)
     ax0.set_xlabel("频率/Hz")
     ax0.set_ylabel("加速度m/s^2")
-    ax0.set_title('X通道Hiblert频谱')
+    ax0.set_title('X通道Hilbert频谱')
     
     ax1 = fig3.add_subplot(212)
-    ax1.plot(f,y_signal_fft[0:10000])
+    ax1.plot(f[0:2000],y_signal_fft[0:2000])
     ax1.set_ylim(0.0,0.1)
     ax1.set_xlabel("频率/Hz")
     ax1.set_ylabel("加速度m/s^2")
-    ax1.set_title('Y通道Hiblert频谱')
+    ax1.set_title('Y通道Hilbert频谱')
     
-    return x_amplitude_envelope,y_amplitude_envelope
+    return x_amplitude_envelope[0:10000],y_amplitude_envelope[0:10000]
    
 '''
 全矢希尔伯特  输入x_amplitude_envelope,y_amplitude_envelope
@@ -120,9 +120,7 @@ angle_x:水平方向传感器与水平方向的夹角
 eps：计算误差要求
 vm,vs,vr,alpha,phase,wave_time:分别为主振矢，副振矢，振矢比，振矢角，矢相位和时域融合结果
 '''
-from sympy import Symbol, exp, I
-def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
-    
+'''
     #输入变量检测
     frame = inspect.currentframe()
     args, _, _, values = inspect.getargvalues(frame)
@@ -147,79 +145,84 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
      
     #判断输入单通道还是双通道
     n =len(xdata)
+    n_half = int(n/2)
     flag_channel = 2
-    if ydata == None:
+    if ydata.all() == None:
         ydata = zeros((n,1))
         flag_channel = 1
     
     #flag位为1时为正变换，为-1时为反变换
     flag=1
-    vm = np.zeros((n/2,1))#定义主振矢
-    vs = np.zeros((n/2,1))#定义副振矢
-    alpha = np.zeros((n/2,1))#定义振矢角
-    rvN_k = np.zeros((n/2,1)) 
-    ivN_k = np.zeros((n/2,1)) 
-    phase = np.zeros((n/2,1)) #定义矢相位，正进动相位角，反进动相位角
-    faia = np.zeros((n/2,1))
-    faib = np.zeros((n/2,1))
+    
+    vm = np.zeros((n_half,1))#定义主振矢
+    vs = np.zeros((n_half,1))#定义副振矢
+    alpha = np.zeros((n_half,1))#定义振矢角
+    rvN_k = np.zeros((n_half,1)) 
+    ivN_k = np.zeros((n_half,1)) 
+    phase = np.zeros((n_half,1)) #定义矢相位，正进动相位角，反进动相位角
+    faia = np.zeros((n_half,1))
+    faib = np.zeros((n_half,1))
     xdata = xdata-np.mean(xdata)
     ydata = ydata-np.mean(ydata)
-    
-    y_a = np.zeros(shape=(len(y_amplitude_envelope),1),dtype=complex)
-    for j in range(len(y_amplitude_envelope)):
-        y_a[j] = complex(0,round(float(y_amplitude_envelope[j]),4))
-    y_a
 
-    z = xdata+y_a
+    xdata.reshape(10000,1)
+    z = np.zeros((len(xdata),1),dtype=complex)
+    
+    for i in range(len(xdata)):
+        z[i] =complex(xdata[i],round(float(ydata[i]),4))
+    
+    
     Z = 2*fftpack.fft(z)/n
     rv=real(Z)
     iv=imag(Z)
-    rvk = rv[1:n/2]
-    ivk = iv[1:n/2]
-    rvN_k[1]  = rv[1]
+    rvk = rv[0:n_half]
+    ivk = iv[0:n_half]
     
-    for i in range(1,n/2):
-        rvN_k[i+1]=rv[n-i+1]
-        ivN_k[i+1]=iv[n-i+1]
-    vm[1]=0 #主振矢
-    vs[1]=0 #副振矢
-    alpha[1]=0 #振矢角
+    rvN_k[0]=rv[0]
+    for i in range(1,n_half-1):
+        rvN_k[i]=rv[n-i]
+        ivN_k[i]=iv[n-i]
+    vm[0]=0 #主振矢
+    vs[0]=0 #副振矢
+    alpha[0]=0 #振矢角
     Xck=(rvN_k+rvk)/2
     Xsk=(ivk-ivN_k)/2
     Yck=(ivk+ivN_k)/2
     Ysk=(rvN_k-rvk)/2
     
-    iv_a = np.zeros(shape=(len(iv),1),dtype=complex)
+    zv = np.zeros(shape=(len(iv),1),dtype=complex)
     for j in range(len(iv)):
-        iv_a[j] = complex(0,round(float(iv[j]),4))
-    iv_a    
+        zv[j] = complex(rv[j],round(float(iv[j]),4))   
     
-    zv=rv+iv_a
-    xp=0.5*np.abs(zv[2:n/2])      #正进动幅值序列
-    mxr=0.5*np.abs(zv[n/2+2:n])   #反进动幅值序列所需中间变量
+    xp=0.5*np.abs(zv[2:n_half])      #正进动幅值序列
+    mxr=0.5*np.abs(zv[n_half+2:n])   #反进动幅值序列所需中间变量
     nn=len(mxr)            #反进动幅值序列长度
     xr=np.zeros((nn,1))             #反进动幅值序列
     tr=np.zeros((nn,1))
     mmivN_k=np.zeros((nn,1))
     mmrvN_k=np.zeros((nn,1))
     
-    tanpk=iv[2:n/2]/np.linalg.inv(rv[2:n/2]) #正进动相位角
-    mtr=iv[n/2+2:n]/np.linalg.inv(rv[n/2+2:n]) #反进动相位角
-    for i in range(1,n+1):
-        xr[i]=mxr[nn-i+1]      #反进动幅值序列
-        tr[i]=mtr[nn-i+1]      #反进动相位角反向排序
-        mmivN_k[i]=iv[n-i+1]
-        mmrvN_k[i]=rv[n-i+1]
+    tanpk=iv[2:n_half]/rv[2:n_half] #正进动相位角
+    mtr=iv[n_half+2:n]/rv[n_half+2:n] #反进动相位角
+    for i in range(1,nn):
+        xr[i]=mxr[nn-i-1]      #反进动幅值序列
+        tr[i]=mtr[nn-i-1]      #反进动相位角反向排序
+        mmivN_k[i]=iv[n-i-1]
+        mmrvN_k[i]=rv[n-i-1]
         
     #求主振矢、副振矢、振矢比
-    vm[2:n/2]=xp+xr           #求主振矢
-    vs[2:n/2]=dir_sensor*(xp-xr) #求副振矢，考虑传感器安装方向与转速方向
-    vr=vs/np.linalg.inv(vm)   #振矢比的值域为[-1，1]；
-    bb=(iv[2:n/2]*mmrvN_k+mmivN_k*rv[2:n/2])#./(rv(2:n/2).*mmrvN_k);
-    aa=(rv[2:n/2]*mmrvN_k-iv[2:n/2]*mmivN_k)#./(rv(2:n/2).*mmrvN_k);
-    atan2a=math.atan(bb/np.linalg.inv(aa))
+    vm[2:n_half]=xp+xr           #求主振矢
+    vs[2:n_half]=dir_sensor*(xp-xr) #求副振矢，考虑传感器安装方向与转速方向
+    vr=vs/vm   #振矢比的值域为[-1，1]
+    bb=(iv[2:n_half]*mmrvN_k+mmivN_k*rv[2:n_half])#./(rv(2:n/2).*mmrvN_k);
+    aa=(rv[2:n_half]*mmrvN_k-iv[2:n_half]*mmivN_k)#./(rv(2:n/2).*mmrvN_k);
+    
+    atan2a = np.zeros((len(bb),1))
+    for i in range(len(bb)):
+        atan2a[i]=math.atan((bb/aa)[i])
+    
     #根据2a所在象限调整2a的值
-    for i in range(1,n/2):
+    for i in range(0,n_half-2):
         if (aa[i]<0 and bb[i]<0):                #2a位于第三象限时
             atan2a[i]=atan2a[i]+pi
         elif (aa[i]<0 and bb[i])>0:            #2a位于第二象限时
@@ -228,29 +231,32 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
             atan2a[i]=atan2a[i]+2*pi
     
     #计算振矢角
-    alpha[2:n/2]=0.5*atan2a*180/pi            #通过2a算振矢角a，单位：角度,值域为[0，180]
+    alpha[2:n_half]=0.5*atan2a*180/pi            #通过2a算振矢角a，单位：角度,值域为[0，180]
     alpha=alpha+angle_x                       #把相角从与X方向夹角变换到与水平方向夹角
-    for i in range(1,n/2+1):
+    for i in range(0,n_half-1):
         if (alpha[i]>180):
             alpha[i]=alpha[i]-180
     #计算矢相位
-    for i in range(1,n/2+1):
+    for i in range(0,n_half-1):
         faia[i]=math.atan2(Xsk[i]*cos(alpha[i])+Ysk[i]*sin(alpha[i]),Xck[i]*cos(alpha[i])+Yck[i]*sin(alpha[i])) # 设xr1=vm*cos(omega*t+faia1)
         faib[i]=math.atan2(-Xsk[i]*sin(alpha[i])+Ysk[i]*cos(alpha[i]),-Xck[i]*sin(alpha[i])+Yck[i]*cos(alpha[i])) #设yr1=vs*cos(omega*t+faib1)  把椭圆方程化成标准形式
     fai=faia-faib
-    phase=math.atan(ivk/np.linalg.inv(rvk))*180/pi #矢谱分析技术中的相位角
+    phase = np.zeros((len(ivk),1))
+    for i in range(len(ivk)):
+        phase[i]=math.atan((ivk/rvk)[i])*180/pi #矢谱分析技术中的相位角
+    
     #根据相角所在象限调整矢相角值
-    for i in range(1,n/2+1):                     #根据相角所在象限调整矢相角值，目的是使相位角始终位于[0，2*pi]         
+    for i in range(0,n_half-1):                     #根据相角所在象限调整矢相角值，目的是使相位角始终位于[0，2*pi]         
         if (ivk[i]>0 and rvk[i]<0):      #当相角位于第二象限时
             phase[i]=phase[i]+180
-        elif (ivk[i]<0 and rvk[i]<0):  #当相角位于第三象限时  
+        elif (ivk[i]<0 and rvk[i]<0): #当相角位于第三象限时  
             phase[i]=phase[i]+180
-        elif(ivk(i)<0 and rvk(i)>0):  #当相角位于第四象限
+        elif (ivk(i)<0 and rvk(i)>0):  #当相角位于第四象限
             phase[i]=phase[i]+2*180
         else:                       #当相角位于第一象限时
             phase[i]=phase[i]
         phase=phase+angle_x        #把相角从与X方向夹角变换到与水平方向夹角   
-        for i in range(1,n/2+1):
+        for i in range(0,n_half-1):
             if(phase[i]>360):
                 phase[i]=phase[i]-360
         
@@ -259,19 +265,18 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
         
         vs_a = np.zeros(shape=(len(vs),1),dtype=complex)
         for j in range(len(vs)):
-            iv_a[j] = complex(0,round(float(vs[j]),4))
-        vs_a      
+            vs_a[j] = complex(0,round(float(vs[j]),4))    
         
         Xvr=vm+vs_a
         Xv=np.zeros((n,1))
-        Xv[2:n/2]=Xvr[2:len(Xvr)]
-        for i in range(2,n/2):
-            Xv[n-i+2]=vm[i]-complex(0,round(float(vs[i]),4))
-        wave_time=fftpack.ifft(Xv)*n/2
+        Xv[2:n_half]=Xvr[2:len(Xvr)]
+        for i in range(2,n_half-1):
+            Xv[n-i+1]=vm[i]-complex(0,round(float(vs[i]),4))
+        wave_time=fftpack.ifft(Xv)*n_half
         
         #根据误差限调整各参数的值
-        maxvm=np.max(vm[2:n/2])
-        for ii in range(1,n/2+1):
+        maxvm=np.max(vm[2:n_half])
+        for ii in range(0,n_half):
             if (vm[ii]<eps*maxvm):
                 alpha[ii]=0
                 phase[ii]=0
@@ -284,7 +289,66 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
                 
         #有五个输出参数vm，vs，vr,alpha,phase，vm,vs,vr，alpha分别为主、副振矢、振矢比与振矢角，alpha为2个变量的细胞数组，其中vs（1，1）保存矢相位，vm（2，1）保存的是时域融合结果！！！     
         aa = phase
-        phase = np.array(2,1)
-        phase[1,1] = aa
-        phase[2,1] = wave_time
+        phase = {}
+        phase["aa"] = aa
+        phase["wave_time"] = wave_time
+        
+        #全矢希尔伯特图
+        fig1 = plt.figure(figsize=(12,12))
+        ax0 = fig1.add_subplot(211)
+        f = np.arange(0,n_half,1)
+        ax0.plot(f[0:2000],vm[0:2000])
+        ax0.set_xlabel("频率/Hz")
+        ax0.set_ylabel("'加速度m/s^2")
+        ax0.set_title('全矢Hilbert解调信号')
+        
+        ax1 = fig1.add_subplot(212)
+        f = np.arange(0,n_half,1)
+        ax1.plot(f[0:2000],wave_time[0:2000])
+        ax1.set_xlabel("时间")
+        ax1.set_ylabel("'加速度m/s^2")
+        ax1.set_title('全矢Hilbert时域信号')
+        
         return vm,vs,vr,alpha,phase
+        '''
+from sympy import Symbol, exp, I
+def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
+   #简易版的全矢谱
+   N = len(xdata)    #采样点数
+   fs = 20000         #采样频率
+   N_half = int(N/2)
+   df = np.arange(0,N,N/fs)
+   z = np.zeros(shape=(N,1),dtype=complex)
+   for j in range(N):
+      z[j] = complex(xdata[j],round(float(ydata[j]),4))
+   
+   Z = 2*fftpack.fft(z)
+   print(z.shape)
+   print(Z.shape)
+   Xp = 0.5*np.abs(Z[0:N_half])/N
+   Xr = 0.5*np.abs(Z[N_half:N])/N
+   print(Xp)
+   Xr[:] = Xr[::-1]
+   RL = Xp + Xr
+   #全矢希尔伯特图
+   fig1 = plt.figure(figsize=(12,12))
+   ax0 = fig1.add_subplot(211)
+   ax0.plot(df[0:2000],RL[0:2000])
+   ax0.set_xlabel("频率/Hz")
+   ax0.set_ylabel("加速度m/s^2")
+   ax0.set_title('全矢Hilbert解调信号')
+   return RL
+    
+def signal_time_frequency(xdata,ydata):
+   N = len(xdata)    #采样点数
+   fs = 20000         #采样频率
+   df = np.arange(0,1/fs,1)
+   
+   #双通道信号时域图
+   fig1 = plt.figure(figsize=(12,12))
+   ax0 = fig1.add_subplot(211)
+   ax0.set_xlabel("时间/s")
+   ax0.set_ylabel("'加速度m/s^2")
+   ax0.set_title('x时域图')
+   ax0.plot(df,xdata)
+        
