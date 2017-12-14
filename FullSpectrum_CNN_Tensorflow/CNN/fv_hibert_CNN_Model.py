@@ -91,7 +91,7 @@ class FV_Hilbert_CNN(object):
                 tf.add_to_collection("losses",regularizer(fc1_weights))
             fc1_biases = tf.get_variable("biases",[self.config.num_fc1],initializer=tf.constant_initializer(0.1))
             fc1 = tf.nn.tanh(tf.matmul(h_pool2_flat,fc1_weights)+fc1_biases)
-            #if self.config.train: fc1 = tf.nn.dropout(fc1,self.config.drop_out)
+            if self.config.train: fc1 = tf.nn.dropout(fc1,self.config.drop_out)
             
         with tf.variable_scope("layer6-fc2"):
             fc2_weights = tf.get_variable("weights",[self.config.num_fc1,self.config.num_fc2],initializer=tf.truncated_normal_initializer(stddev=0.1))
