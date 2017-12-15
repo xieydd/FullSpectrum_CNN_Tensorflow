@@ -97,20 +97,20 @@ def hibert(x,y):
     
     fig3 = plt.figure(figsize=(12,12))
     ax0 = fig3.add_subplot(211)
-    ax0.plot(f[0:2000],x_signal_fft[0:2000])
+    ax0.plot(f[1:2000],x_signal_fft[1:2000])
     ax0.set_ylim(0.0,0.1)
     ax0.set_xlabel("频率/Hz")
     ax0.set_ylabel("加速度m/s^2")
     ax0.set_title('X通道Hilbert频谱')
     
     ax1 = fig3.add_subplot(212)
-    ax1.plot(f[0:2000],y_signal_fft[0:2000])
+    ax1.plot(f[1:2000],y_signal_fft[1:2000])
     ax1.set_ylim(0.0,0.1)
     ax1.set_xlabel("频率/Hz")
     ax1.set_ylabel("加速度m/s^2")
     ax1.set_title('Y通道Hilbert频谱')
     
-    return x_amplitude_envelope[0:10000],y_amplitude_envelope[0:10000]
+    return x_amplitude_envelope[0:20000],y_amplitude_envelope[0:20000]
    
 '''
 全矢希尔伯特  输入x_amplitude_envelope,y_amplitude_envelope
@@ -172,7 +172,7 @@ vm,vs,vr,alpha,phase,wave_time:分别为主振矢，副振矢，振矢比，振�
         z[i] =complex(xdata[i],round(float(ydata[i]),4))
     
     
-    Z = 2*fftpack.fft(z)/n
+    Z = 2*fftpack.fft(z.flatten())/n
     rv=real(Z)
     iv=imag(Z)
     rvk = rv[0:n_half]
@@ -320,20 +320,18 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
    df = np.arange(0,N,N/fs)
    z = np.zeros(shape=(N,1),dtype=complex)
    for j in range(N):
-      z[j] = complex(xdata[j],round(float(ydata[j]),4))
-   
-   Z = 2*fftpack.fft(z)
-   print(z.shape)
-   print(Z.shape)
-   Xp = 0.5*np.abs(Z[0:N_half])/N
-   Xr = 0.5*np.abs(Z[N_half:N])/N
-   print(Xp)
+      z[j] = np.complex(xdata[j],round(float(ydata[j]),8))
+
+   #print(z.flatten().shape)
+   X = np.abs(fftpack.fft(z.flatten()))*2/N
+   Xp = X[0:N_half]
+   Xr = X[N_half:N]
    Xr[:] = Xr[::-1]
    RL = Xp + Xr
    #全矢希尔伯特图
    fig1 = plt.figure(figsize=(12,12))
    ax0 = fig1.add_subplot(211)
-   ax0.plot(df[0:2000],RL[0:2000])
+   ax0.plot(df[1:2000],RL[1:2000])
    ax0.set_xlabel("频率/Hz")
    ax0.set_ylabel("加速度m/s^2")
    ax0.set_title('全矢Hilbert解调信号')
@@ -342,13 +340,37 @@ def fv_hibert(xdata,ydata,dir_sensor,angle_x,eps):
 def signal_time_frequency(xdata,ydata):
    N = len(xdata)    #采样点数
    fs = 20000         #采样频率
-   df = np.arange(0,1/fs,1)
+   df = np.arange(0,N,N/fs)
    
    #双通道信号时域图
-   fig1 = plt.figure(figsize=(12,12))
-   ax0 = fig1.add_subplot(211)
+   fig1 = plt.figure(figsize=(20,20))
+   ax0 = fig1.add_subplot(411)
    ax0.set_xlabel("时间/s")
    ax0.set_ylabel("'加速度m/s^2")
    ax0.set_title('x时域图')
    ax0.plot(df,xdata)
+   
+   ax1 = fig1.add_subplot(412)
+   ax1.set_xlabel("时间/s")
+   ax1.set_ylabel("'加速度m/s^2")
+   ax1.set_title('y时域图')
+   ax1.plot(df,ydata)
+   
+   xdata_f = np.abs(fftpack.fft(xdata))*2/N
+   ax2 = fig1.add_subplot(413)
+   ax2.set_xlabel("频率/Hz")
+   ax2.set_ylabel("'加速度m/s^2")
+   ax2.set_title('x幅值谱')
+   ax2.plot(df[1:],xdata_f[1:])
+   
+   ydata_f = fftpack.fft(ydata)
+   ydata_f = np.abs(ydata_f)*2/N
+   ax3 = fig1.add_subplot(414)
+   ax3.set_xlabel("频率/Hz")
+   ax3.set_ylabel("'加速度m/s^2")
+   ax3.set_title('y幅值谱')
+   ax3.plot(df[1:],ydata_f[1:])
+   
+   
+   
         
