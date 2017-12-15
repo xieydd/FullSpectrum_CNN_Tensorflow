@@ -35,15 +35,15 @@ class FV_Hilbert_CNNConfig(object):
 
     batch_size = 64         #每批训练大小
     num_epochs = 4000         #总迭代轮数
-    learning_rate = 1e-4    #学习率
-    drop_out = 0.5          #drop参数
+    #learning_rate = 1e-4    #学习率
+    drop_out = 0.8          #drop参数
 
     print_per_batch = 100    # 每多少轮输出一次结果
     save_per_batch = 10      # 每多少轮存入tensorboard
     train = True             # 是否使用DropOut
     Gpu_used = 0.8           # Gpu使用量
     moving_average_decay = 0.99 #滑动平均衰减率
-    learning_rate_base = 0.0001 #学习率
+    learning_rate_base = 0.001 #学习率
     learning_rate_decay = 0.95  #学习率衰减率
     
     
