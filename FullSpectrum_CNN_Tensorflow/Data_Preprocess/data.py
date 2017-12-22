@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import *
 
-format_length = 2048
-
 #读取轴承文件
 def readFile(path,txt_path):
     files = os.listdir(path)
@@ -33,8 +31,8 @@ def readFile(path,txt_path):
                 nums = [x for x in nums]
                 matrix = np.c_[matrix,nums]
         matrix = matrix.transpose()
-        matrix1 = [x[0] for x in matrix]
-        matrix2 = [x[1] for x in matrix]
+        matrix1 = [x[4] for x in matrix]
+        matrix2 = [x[5] for x in matrix]
         M1.append(matrix1)
         M2.append(matrix2)
     M1 = np.matrix(M1)
@@ -42,17 +40,11 @@ def readFile(path,txt_path):
     #将矩阵转换成csv文件便于以后的读取
     m1 = pd.DataFrame(M1)
     m1.to_csv(txt_path+'/m1.csv')
-    
 
     m2 = pd.DataFrame(M2)
     m2.to_csv(txt_path+'/m2.csv')
-    
-    num = M1.shape[0]
-    length = M1.shape[1]     
-    
-    M1 = M1.reshape((int(num*length/format_length),format_length))
-    M2 = M2.reshape((int(num*length/format_length),format_length))
-    return M1,M2
+
+    return M1,M2,matrix
 
 #画出2156组数据的均方值和峭度matrix为一个通道的(2156,20480)
 def plot_Kurtosis_rms(matrix):
