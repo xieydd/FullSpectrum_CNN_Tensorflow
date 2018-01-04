@@ -99,7 +99,8 @@ class FV_Hilbert_CNN(object):
                 tf.add_to_collection("losses",regularizer(fc2_weights))
             fc2_biases = tf.get_variable("biases",[self.config.num_fc2],initializer=tf.constant_initializer(0.1))
             self.logit = tf.matmul(fc1,fc2_weights)+fc2_biases
-            self.y_pred_cls = tf.argmax(tf.nn.softmax(self.logit),1)
+            self.logit_1 = tf.nn.softmax(self.logit)
+            self.y_pred_cls = tf.argmax(self.logit_1,1)
         
         
         #使用滑动平均输出
